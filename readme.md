@@ -10,7 +10,7 @@ password will simply generate a different unique password.
 
 ## Installation
 
-If python (>= 3.1.0) is installed properly, it is sufficient to simply
+If Python (>= 3.1.0) is installed properly, it is sufficient to simply
 move the pwm executable to a place that appears in `$PATH`. E.g.:
 
     cp pwm /usr/bin/
@@ -21,4 +21,4 @@ PWM uses PBKDF2 with SHA512. The salt parameter is the unique password
 identifier (argument: `--site`). The password length is 1.5 times the
 length of the master password (rounded down towards negative infinity).
 2^15-1 iterations of PBKDF2 are used to generate keys, which are then
-encoded as BASE32.
+encoded as BASE32 (lowercase and with the padding characters stripped).
