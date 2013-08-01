@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+# -*- mode:python -*-
+
+# Copyright (c) 2013 Stefano Palazzo <stefano.palazzo@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+import sys
+import getpass
+import hashlib
+import base64
+import hmac
+import os
+import struct
+import argparse
+
+
+def pbkdf2(digestmod, password, salt, count, dk_length):
+    dk, h_length = b'', digestmod().digest_size
+    blocks = (dk_length // h_length) + (1 if dk_length % h_length else 0)
+    for i in range(1, blocks + 1):
+        r = u = hmac.new(
+            password, salt + struct.pack(">i", i), digestmod).digest()
+        for i in range(2, count + 1):
+            u = hmac.new(password, u, digestmod).digest()
+            r = bytes(i ^ j for i, j in zip(r, u))
+        dk += r
+    return dk[:dk_length]
+
+
+def generate(passphrase, site=None):
+    key = pbkdf2(hashlib.sha512, passphrase, site, 2 ** 15 - 1,
+                 int(len(passphrase) * 1.5))
+    return base64.b32encode(key).decode("ascii").rstrip("=").lower()
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="pwm",
+        description="stateless password manager")
+    parser.add_argument("--copy", "-c", action="store_true",
+                        help="copy password to the operating system clipboard")
+    parser.add_argument("--site", "-s", type=str, default=None,
+                        help="the password's unique identifier")
+    args = parser.parse_args()
+    passphrase = getpass.getpass("passphrase: ").encode("utf-8")
+    if not passphrase:
+        print("error: empty passphrase", file=sys.stderr)
+        sys.exit(2)
+    site = (args.site or input("site: ")).encode("utf-8")
+    if len(passphrase) < 12:
+        print("warning: short passphrase", file=sys.stderr)
+    password = generate(passphrase, site)
+    if args.copy:
+        print("info: password copied to the operating system clipboard",
+              file=sys.stderr)
+    else:
+        print(password)
+
+
+if __name__ == '__main__':
+    main()
